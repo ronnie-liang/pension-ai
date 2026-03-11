@@ -2,6 +2,5 @@
   "name": "pension-ai",
   "version": "1.0.0",
   "description": "PensionAI 智能养老金资产配置顾问",
-  "type": "module",
   "engines": { "node": "24.x" }
 }
