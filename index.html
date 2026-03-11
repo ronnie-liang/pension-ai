@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PensionAI · 智能配置顾问</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --navy:      #0c1828;
+  --navy-2:    #111f38;
+  --gold:      #c9a84c;
+  --gold-lt:   #e8c97a;
+  --gold-pale: rgba(201,168,76,0.12);
+  --teal:      #2ec4b6;
+  --rose:      #e05c5c;
+  --white:     #f0f4fa;
+  --txt:       #dce6f5;
+  --txt-sub:   #7a90b0;
+  --border:    rgba(255,255,255,0.07);
+  --card:      rgba(255,255,255,0.04);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:'DM Sans','Noto Sans SC',sans-serif;
+  background:var(--navy);color:var(--txt);
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% -5%,rgba(26,48,96,0.7) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 105%,rgba(201,168,76,0.07) 0%,transparent 60%);
+}
+
+/* NAV */
+nav{
+  position:relative;z-index:10;
+  height:54px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+  background:rgba(12,24,40,0.95);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:9px;}
+.brand-logo{
+  width:30px;height:30px;border-radius:7px;
+  background:linear-gradient(135deg,var(--gold),#a8762a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:var(--navy);
+}
+.brand-name{font-family:'DM Serif Display',serif;font-size:17px;color:var(--white);letter-spacing:.03em;}
+.brand-name span{color:var(--gold);}
+.nav-center{display:flex;gap:2px;}
+.ntab{padding:5px 14px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--txt-sub);cursor:pointer;border:none;background:none;transition:all .18s;}
+.ntab.active{background:var(--gold-pale);color:var(--gold);}
+.ntab:hover{background:var(--gold-pale);color:var(--gold-lt);}
+.nav-pill{font-size:11px;padding:3px 11px;border-radius:20px;background:rgba(46,196,182,0.12);color:var(--teal);border:1px solid rgba(46,196,182,0.22);}
+
+/* WORKSPACE */
+.workspace{
+  display:grid;grid-template-columns:400px 1fr;
+  height:calc(100vh - 54px);position:relative;z-index:1;
+}
+
+/* CHAT */
+.chat-panel{display:flex;flex-direction:column;border-right:1px solid var(--border);background:rgba(255,255,255,0.015);height:100%;overflow:hidden;}
+.chat-header{padding:15px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.chat-header-top{display:flex;align-items:center;gap:10px;margin-bottom:5px;}
+.ai-avatar{width:34px;height:34px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,#1a3060,#2a4080);border:1px solid var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.ai-name{font-size:14px;font-weight:600;color:var(--white);}
+.ai-role{font-size:11px;color:var(--txt-sub);}
+.ai-status{margin-left:auto;font-size:10.5px;color:var(--teal);display:flex;align-items:center;gap:4px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.chat-hint{font-size:11.5px;color:var(--txt-sub);line-height:1.5;}
+
+.quick-starts{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;}
+.qs-btn{font-size:11px;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--txt-sub);cursor:pointer;transition:all .18s;white-space:nowrap;}
+.qs-btn:hover{background:var(--gold-pale);border-color:rgba(201,168,76,0.3);color:var(--gold-lt);}
+
+.messages{flex:1;overflow-y:scroll;padding:14px;display:flex;flex-direction:column;gap:12px;min-height:0;}
+.messages::-webkit-scrollbar{width:6px;}
+.messages::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.5);border-radius:3px;} .messages::-webkit-scrollbar-track{background:rgba(255,255,255,0.04);}
+
+.msg{display:flex;gap:8px;align-items:flex-start;}
+.msg.user{flex-direction:row-reverse;}
+.msg-av{width:27px;height:27px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.msg.ai .msg-av{background:linear-gradient(135deg,#1a3060,#2a5080);border:1px solid rgba(201,168,76,0.2);}
+.msg.user .msg-av{background:linear-gradient(135deg,var(--gold),#a8762a);color:var(--navy);font-weight:700;}
+.bubble{max-width:290px;padding:9px 13px;border-radius:11px;font-size:13px;line-height:1.7;}
+.msg.ai .bubble{background:rgba(255,255,255,0.06);border:1px solid var(--border);border-top-left-radius:3px;color:var(--txt);}
+.msg.user .bubble{background:linear-gradient(135deg,rgba(201,168,76,0.2),rgba(168,118,42,0.15));border:1px solid rgba(201,168,76,0.25);border-top-right-radius:3px;color:var(--white);}
+.bubble b{color:var(--gold-lt);font-weight:600;}
+.bubble em{color:var(--teal);}
+.msg-time{font-size:10px;color:var(--txt-sub);margin-top:3px;padding:0 3px;}
+.msg.user .msg-time{text-align:right;}
+
+.typing-dots{display:flex;gap:4px;padding:3px 2px;}
+.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--txt-sub);animation:dot-b .9s ease-in-out infinite;}
+.typing-dots span:nth-child(2){animation-delay:.15s;}
+.typing-dots span:nth-child(3){animation-delay:.3s;}
+@keyframes dot-b{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+.stream-cursor{display:inline-block;width:2px;height:12px;background:var(--gold);margin-left:2px;vertical-align:middle;animation:blink .75s step-end infinite;}
+@keyframes blink{50%{opacity:0}}
+
+.input-area{padding:11px 13px;border-top:1px solid var(--border);flex-shrink:0;}
+.input-row{display:flex;gap:7px;align-items:flex-end;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:11px;padding:8px 10px;transition:border-color .2s,box-shadow .2s;}
+.input-row:focus-within{border-color:rgba(201,168,76,0.4);box-shadow:0 0 0 3px var(--gold-pale);}
+#chatInput{flex:1;background:transparent;border:none;outline:none;color:var(--txt);font-size:13px;font-family:inherit;resize:none;max-height:90px;line-height:1.5;scrollbar-width:none;}
+#chatInput::placeholder{color:var(--txt-sub);}
+#chatInput::-webkit-scrollbar{display:none;}
+.send-btn{width:31px;height:31px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,var(--gold),#a8762a);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s,opacity .15s;color:var(--navy);font-size:13px;}
+.send-btn:hover{transform:scale(1.06);}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* RESULT */
+.result-panel{overflow-y:scroll;padding:22px 26px;display:flex;flex-direction:column;gap:18px;min-height:0;}
+.result-panel::-webkit-scrollbar{width:6px;}
+.result-panel::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.5);border-radius:3px;} .result-panel::-webkit-scrollbar-track{background:rgba(255,255,255,0.04);}
+
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;opacity:.45;padding-bottom:60px;}
+.empty-glyph{font-size:46px;background:linear-gradient(135deg,var(--gold),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.empty-title{font-size:15px;font-weight:600;color:var(--white);}
+.empty-sub{font-size:12px;color:var(--txt-sub);line-height:1.7;max-width:260px;}
+
+.r-card{background:var(--card);border:1px solid rgba(201,168,76,0.13);border-radius:13px;padding:18px 20px;animation:fadeUp .45s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.r-title{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.r-title::before{content:'';width:3px;height:12px;background:var(--gold);border-radius:2px;}
+
+.plan-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.meta-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:9px 11px;}
+.meta-key{font-size:10px;color:var(--txt-sub);margin-bottom:2px;}
+.meta-val{font-size:13px;font-weight:600;color:var(--white);}
+
+.alloc-wrap{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center;}
+.donut-box{position:relative;width:140px;height:140px;}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.donut-center-val{font-size:20px;font-weight:700;color:var(--white);}
+.donut-center-lbl{font-size:9px;color:var(--txt-sub);}
+
+.leg-list{display:flex;flex-direction:column;gap:8px;}
+.leg-item{display:flex;align-items:center;gap:7px;}
+.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.leg-name{font-size:11.5px;color:var(--txt-sub);flex:1;}
+.leg-pct{font-size:12px;font-weight:600;color:var(--white);}
+.leg-bar-bg{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:1px;}
+.leg-bar{height:3px;border-radius:2px;}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.m-cell{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;padding:12px;text-align:center;}
+.m-val{font-size:20px;font-weight:700;color:var(--teal);}
+.m-val.warn{color:#f4a261;}
+.m-lbl{font-size:10px;color:var(--txt-sub);margin-top:2px;}
+
+.risk-list{display:flex;flex-direction:column;gap:8px;}
+.risk-row{display:flex;align-items:center;gap:9px;}
+.risk-lbl{font-size:11px;color:var(--txt-sub);width:68px;flex-shrink:0;}
+.risk-track{flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;}
+.risk-fill{height:100%;border-radius:2px;}
+.risk-score{font-size:11px;font-weight:600;color:var(--white);width:24px;text-align:right;}
+
+.plan-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:20px;background:var(--gold-pale);color:var(--gold);border:1px solid rgba(201,168,76,0.25);margin-bottom:12px;}
+.disclaimer{padding:10px 14px;border-radius:7px;background:rgba(255,255,255,0.02);border:1px solid var(--border);font-size:10.5px;color:var(--txt-sub);line-height:1.6;}
+.summary-text{font-size:13px;line-height:1.8;color:var(--txt);border-left:2px solid var(--gold);padding-left:12px;}
+
+/* error banner */
+.err-banner{background:rgba(224,92,92,0.1);border:1px solid rgba(224,92,92,0.25);border-radius:8px;padding:10px 13px;font-size:12.5px;color:#f08080;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <div class="brand-logo">P</div>
+    <span class="brand-name">Pension<span>AI</span></span>
+  </div>
+  <div class="nav-center">
+    <button class="ntab active">AI 配置顾问</button>
+    <button class="ntab">投后跟踪</button>
+    <button class="ntab">事件预警</button>
+    <button class="ntab">报告</button>
+  </div>
+  <div class="nav-pill">● AI 已就绪</div>
+</nav>
+
+<div class="workspace">
+  <!-- CHAT -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-top">
+        <div class="ai-avatar">🤖</div>
+        <div>
+          <div class="ai-name">配置顾问 · Penny</div>
+          <div class="ai-role">养老金资产配置 AI 专家</div>
+        </div>
+        <div class="ai-status"><span class="status-dot"></span>在线</div>
+      </div>
+      <div class="chat-hint">告诉我配置目标与约束，我将生成专属方案并呈现在右侧。</div>
+    </div>
+    <div class="quick-starts">
+      <button class="qs-btn" onclick="quickSend('50亿，10年期，年化6%，偏稳健')">📋 50亿稳健10年方案</button>
+      <button class="qs-btn" onclick="quickSend('100亿，20年期，保守型，年化5%')">🛡 100亿保守20年方案</button>
+      <button class="qs-btn" onclick="quickSend('30亿，5年期，平衡型，年化7%，加大境外配置')">🌏 境外多元配置</button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="chatInput" rows="1" placeholder="描述配置需求：规模、期限、风险、收益目标…" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-panel" id="resultPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-glyph">◈</div>
+      <div class="empty-title">配置方案将在此呈现</div>
+      <div class="empty-sub">在左侧与 AI 顾问对话，描述养老金计划参数，方案图表将实时生成。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#c9a84c','#2ec4b6','#6c8ebf','#e07d4e','#9b72cf','#5cb85c'];
+let history = [];
+let chartInst = null;
+let busy = false;
+
+const SYSTEM = `你是 Penny，养老金资产配置 AI 顾问，服务机构养老金客户。
+
+工作方式：
+1. 多轮对话收集参数（规模、期限、风险等级、收益目标、资产偏好、约束）
+2. 收集到足够信息（至少：风险偏好+收益目标）后，输出配置方案
+3. 回复分两部分：对话文字 + JSON数据块（用<<<JSON_START>>>和<<<JSON_END>>>包裹）
+
+对话：专业简洁温和，中文，每次≤2个问题。
+
+信息足够时，在对话后附：
+<<<JSON_START>>>
+{
+  "planName":"方案名",
+  "scale":"50亿元",
+  "horizon":"10年",
+  "riskLevel":"稳健型",
+  "returnTarget":"6%",
+  "allocation":[
+    {"name":"固定收益","pct":40,"color":"#2ec4b6"},
+    {"name":"国内权益","pct":25,"color":"#c9a84c"},
+    {"name":"另类投资","pct":15,"color":"#6c8ebf"},
+    {"name":"境外权益","pct":12,"color":"#e07d4e"},
+    {"name":"现金及等价物","pct":8,"color":"#9b72cf"}
+  ],
+  "metrics":{"expectedReturn":"6.3%","maxDrawdown":"-9.2%","sharpe":"1.15"},
+  "risks":[
+    {"name":"市场风险","score":42},
+    {"name":"利率风险","score":58},
+    {"name":"流动性风险","score":22},
+    {"name":"信用风险","score":35},
+    {"name":"汇率风险","score":28}
+  ],
+  "summary":"100字左右的配置逻辑总结"
+}
+<<<JSON_END>>>
+
+比例之和必须=100，数据专业合理。信息不足时不输出JSON，继续提问。`;
+
+// init
+window.onload = () => {
+  appendAI(`您好！我是 **Penny**，您的养老金资产配置 AI 顾问。👋\n\n请告诉我配置计划的基本情况，例如：\n- 🏦 **计划规模**和**投资期限**？\n- 📊 **预期收益目标**和**风险承受能力**？\n\n您可以直接说，比如 *"50亿，10年期，年化6%，偏稳健"*，我来生成专属方案。`);
+};
+
+function now(){ return new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); }
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderMd(t){
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>');
+}
+
+function scrollBottom(){ const m=document.getElementById('messages'); setTimeout(()=>{ m.scrollTop=m.scrollHeight; },50); }
+
+function appendAI(text){
+  const msgs = document.getElementById('messages');
+  const id = 'msg-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  msgs.innerHTML += `
+    <div class="msg ai" id="${id}">
+      <div class="msg-av">🤖</div>
+      <div>
+        <div class="bubble">${renderMd(text)}</div>
+        <div class="msg-time">${now()}</div>
+      </div>
+    </div>`;
+  scrollBottom();
+  return id;
+}
+
+function appendUser(text){
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML += `
+    <div class="msg user">
+      <div class="msg-av">我</div>
+      <div>
+        <div class="bubble">${escHtml(text)}</div>
+        <div class="msg-time">${now()}</div>
+      </div>
+    </div>`;
+  scrollBottom();
+}
+
+function showTyping(){
+  const msgs = document.getElementById('messages');
+  const id = 'typing-'+Date.now();
+  msgs.innerHTML += `
+    <div class="msg ai" id="${id}">
+      <div class="msg-av">🤖</div>
+      <div><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>
+    </div>`;
+  scrollBottom();
+  return id;
+}
+
+function removeEl(id){ const el=document.getElementById(id); if(el) el.remove(); }
+
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,90)+'px';
+}
+
+function handleKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(); }
+}
+
+function quickSend(text){
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+async function sendMessage(){
+  if(busy) return;
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if(!text) return;
+
+  inp.value=''; inp.style.height='auto';
+  appendUser(text);
+  history.push({role:'user', content:text});
+
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+  const typId = showTyping();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system: SYSTEM,
+        messages: history
+      })
+    });
+
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const fullText = (data.content||[]).map(i=>i.text||'').join('');
+
+    // parse JSON block
+    const jsonMatch = fullText.match(/<<<JSON_START>>>([\s\S]*?)<<<JSON_END>>>/);
+    const dialogue = fullText.replace(/<<<JSON_START>>>[\s\S]*?<<<JSON_END>>>/,'').trim();
+
+    removeEl(typId);
+
+    // stream dialogue
+    if(dialogue){
+      const msgId = appendAI('');
+      await streamInto(msgId, dialogue);
+    }
+
+    history.push({role:'assistant', content:fullText});
+
+    // render plan
+    if(jsonMatch){
+      try{
+        const plan = JSON.parse(jsonMatch[1].trim());
+        renderPlan(plan);
+      } catch(e){ console.warn('JSON parse error',e); }
+    }
+
+  } catch(err){
+    removeEl(typId);
+    // show error in chat + result panel
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML += `
+      <div class="msg ai">
+        <div class="msg-av">🤖</div>
+        <div>
+          <div class="bubble" style="border-color:rgba(224,92,92,0.3)">
+            ⚠ 请求失败：${escHtml(err.message)}<br>
+            <span style="font-size:11px;color:var(--txt-sub)">请检查网络连接后重试。</span>
+          </div>
+        </div>
+      </div>`;
+    scrollBottom();
+  } finally {
+    busy = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+async function streamInto(msgId, text){
+  const bubbleEl = document.querySelector(`#${msgId} .bubble`);
+  if(!bubbleEl) return;
+  let displayed = '';
+  const chars = text.split('');
+  bubbleEl.innerHTML = '<span class="stream-cursor"></span>';
+  return new Promise(resolve=>{
+    let i=0;
+    const tick = setInterval(()=>{
+      const chunk = Math.min(5, chars.length-i);
+      for(let j=0;j<chunk;j++){ displayed += chars[i]||''; i++; }
+      bubbleEl.innerHTML = renderMd(displayed) + '<span class="stream-cursor"></span>';
+      scrollBottom();
+      if(i >= chars.length){
+        clearInterval(tick);
+        bubbleEl.innerHTML = renderMd(displayed);
+        resolve();
+      }
+    }, 14);
+  });
+}
+
+function renderPlan(p){
+  const panel = document.getElementById('resultPanel');
+  panel.innerHTML = `
+    <div class="plan-badge">✦ AI 配置方案已生成</div>
+
+    <div class="r-card">
+      <div class="r-title">方案概览</div>
+      <div class="plan-meta">
+        <div class="meta-item"><div class="meta-key">计划规模</div><div class="meta-val">${p.scale||'—'}</div></div>
+        <div class="meta-item"><div class="meta-key">投资期限</div><div class="meta-val">${p.horizon||'—'}</div></div>
+        <div class="meta-item"><div class="meta-key">风险等级</div><div class="meta-val">${p.riskLevel||'—'}</div></div>
+        <div class="meta-item"><div class="meta-key">收益目标</div><div class="meta-val">${p.returnTarget||'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="r-card" style="animation-delay:.06s">
+      <div class="r-title">资产配置结构</div>
+      <div class="alloc-wrap">
+        <div class="donut-box">
+          <canvas id="donutChart"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-val">${p.allocation.length}</div>
+            <div class="donut-center-lbl">资产类别</div>
+          </div>
+        </div>
+        <div class="leg-list" id="legList"></div>
+      </div>
+    </div>
+
+    <div class="r-card" style="animation-delay:.12s">
+      <div class="r-title">核心风险收益指标</div>
+      <div class="metrics-grid">
+        <div class="m-cell"><div class="m-val">${p.metrics.expectedReturn}</div><div class="m-lbl">预期年化收益</div></div>
+        <div class="m-cell"><div class="m-val warn">${p.metrics.maxDrawdown}</div><div class="m-lbl">最大回撤估算</div></div>
+        <div class="m-cell"><div class="m-val">${p.metrics.sharpe}</div><div class="m-lbl">夏普比率</div></div>
+      </div>
+    </div>
+
+    <div class="r-card" style="animation-delay:.18s">
+      <div class="r-title">风险评估</div>
+      <div class="risk-list" id="riskList"></div>
+    </div>
+
+    ${p.summary?`
+    <div class="r-card" style="animation-delay:.22s">
+      <div class="r-title">配置逻辑</div>
+      <div class="summary-text">${p.summary}</div>
+    </div>`:''}
+
+    <div class="disclaimer">⚠ 本方案由 AI 根据对话信息自动生成，仅供参考。正式决策须结合监管要求、受托人判断及专业尽调流程。</div>
+  `;
+
+  // donut
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  if(chartInst) chartInst.destroy();
+  chartInst = new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:p.allocation.map(a=>a.name),
+      datasets:[{data:p.allocation.map(a=>a.pct),backgroundColor:p.allocation.map((a,i)=>a.color||COLORS[i]),borderWidth:0,hoverOffset:5}]
+    },
+    options:{cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}%`}}},animation:{duration:900}}
+  });
+
+  // legend
+  const leg = document.getElementById('legList');
+  p.allocation.forEach((a,i)=>{
+    const c=a.color||COLORS[i];
+    leg.innerHTML+=`<div class="leg-item"><div class="leg-dot" style="background:${c}"></div><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="leg-name">${a.name}</span><span class="leg-pct">${a.pct}%</span></div><div class="leg-bar-bg"><div class="leg-bar" style="width:${a.pct}%;background:${c}"></div></div></div></div>`;
+  });
+
+  // risks
+  const rl = document.getElementById('riskList');
+  p.risks.forEach(r=>{
+    const col=r.score<40?'var(--teal)':r.score<65?'var(--gold)':'var(--rose)';
+    rl.innerHTML+=`<div class="risk-row"><span class="risk-lbl">${r.name}</span><div class="risk-track"><div class="risk-fill" style="width:${r.score}%;background:${col}"></div></div><span class="risk-score">${r.score}</span></div>`;
+  });
+
+  panel.scrollTop=0;
+}
+</script>
+</body>
+</html>
