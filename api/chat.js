@@ -1,3 +1,4 @@
+return res.status(200).json({ debug: process.env.DASHSCOPE_API_KEY ? '有值' : '空的' });
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
