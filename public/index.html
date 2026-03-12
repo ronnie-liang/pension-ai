@@ -250,11 +250,11 @@ const SYSTEM = `你是 Penny，养老金资产配置 AI 顾问，服务机构养
   "riskLevel":"稳健型",
   "returnTarget":"6%",
   "allocation":[
-    {"name":"固定收益","pct":40,"color":"#2ec4b6"},
-    {"name":"国内权益","pct":25,"color":"#c9a84c"},
-    {"name":"另类投资","pct":15,"color":"#6c8ebf"},
-    {"name":"境外权益","pct":12,"color":"#e07d4e"},
-    {"name":"现金及等价物","pct":8,"color":"#9b72cf"}
+    {"name":"固定收益","pct":40,"color":"#2ec4b6","return":"4.5%","volatility":"3.2%"},
+    {"name":"国内权益","pct":25,"color":"#c9a84c","return":"8.0%","volatility":"18.5%"},
+    {"name":"另类投资","pct":15,"color":"#6c8ebf","return":"7.0%","volatility":"10.0%"},
+    {"name":"境外权益","pct":12,"color":"#e07d4e","return":"9.0%","volatility":"20.0%"},
+    {"name":"现金及等价物","pct":8,"color":"#9b72cf","return":"2.0%","volatility":"0.5%"}
   ],
   "metrics":{"expectedReturn":"6.3%","maxDrawdown":"-9.2%","sharpe":"1.15"},
   "risks":[
@@ -268,7 +268,7 @@ const SYSTEM = `你是 Penny，养老金资产配置 AI 顾问，服务机构养
 }
 <<<JSON_END>>>
 
-比例之和必须=100，数据专业合理。信息不足时不输出JSON，继续提问。`;
+比例之和必须=100。allocation每项必须包含return(预期年化收益)和volatility(预期波动率/风险)字段，数据专业合理。信息不足时不输出JSON，继续提问。`;
 
 // init
 window.onload = () => {
@@ -470,6 +470,17 @@ function renderPlan(p){
         </div>
         <div class="leg-list" id="legList"></div>
       </div>
+      <table class="asset-table">
+        <thead>
+          <tr>
+            <th>资产类别</th>
+            <th>配置比例</th>
+            <th>预期收益</th>
+            <th>预期风险（波动率）</th>
+          </tr>
+        </thead>
+        <tbody id="assetTableBody"></tbody>
+      </table>
     </div>
 
     <div class="r-card" style="animation-delay:.12s">
@@ -513,6 +524,29 @@ function renderPlan(p){
     const c=a.color||COLORS[i];
     leg.innerHTML+=`<div class="leg-item"><div class="leg-dot" style="background:${c}"></div><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="leg-name">${a.name}</span><span class="leg-pct">${a.pct}%</span></div><div class="leg-bar-bg"><div class="leg-bar" style="width:${a.pct}%;background:${c}"></div></div></div></div>`;
   });
+
+  // asset table
+  const tbody = document.getElementById('assetTableBody');
+  if(tbody){
+    p.allocation.forEach((a,i)=>{
+      const c = a.color||COLORS[i];
+      const ret = a.return || '—';
+      const vol = a.volatility || '—';
+      // 波动率数值用于bar宽度
+      const volNum = parseFloat((a.volatility||'0').replace('%','')) || 0;
+      const barW = Math.min(volNum * 3, 100); // 最大30%波动率=100%宽度
+      tbody.innerHTML += `
+        <tr>
+          <td><div class="td-name"><div class="td-dot" style="background:${c}"></div>${a.name}</div></td>
+          <td><span class="td-pct">${a.pct}%</span></td>
+          <td><span class="td-return">${ret}</span></td>
+          <td>
+            <span class="td-vol">${vol}</span>
+            <div class="td-bar-wrap"><div class="td-bar" style="width:${barW}%;background:${c};opacity:0.7"></div></div>
+          </td>
+        </tr>`;
+    });
+  }
 
   // risks
   const rl = document.getElementById('riskList');
